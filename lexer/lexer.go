@@ -60,6 +60,10 @@ func (l *Lexer) reset() {
 	l.buf = make([]rune, 0)
 }
 
+func (l *Lexer) Err() error {
+	return l.err
+}
+
 func (l *Lexer) Get() (tok token.Token, val string) {
 	l.reset()
 	for {
