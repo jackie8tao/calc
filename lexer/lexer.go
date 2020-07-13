@@ -8,6 +8,8 @@ import (
 
 const EOF = rune(-1)
 
+var ErrEOZ = errors.New("end of stream")
+
 type Lexer struct {
 	err    error
 	ch     rune
@@ -69,7 +71,7 @@ func (l *Lexer) Get() (tok token.Token, val string) {
 	for {
 		switch c := l.ch; {
 		case isEOF(c):
-			l.err = errors.New("end of the stream")
+			l.err = ErrEOZ
 			return
 		case isWhitespace(c):
 			l.next()

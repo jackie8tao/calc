@@ -13,6 +13,7 @@ var (
 	errUnexpectedToken = errors.New("unexpected token")
 )
 
+// Node parsing tree node
 type Node struct {
 	Val ast.Ast
 	Ins ast.Ast
@@ -20,19 +21,31 @@ type Node struct {
 
 type Parser struct {
 	err error
-	lx  lexer.Lexer
+	lx  *lexer.Lexer
 	tok token.Token
 	val string
 }
 
-func New() *Parser {
-	return &Parser{}
+func New(src string) *Parser {
+	lx := lexer.New(src)
+	tk, val := lx.Get()
+	if lx.Err() != nil {
+		panic(lx.Err())
+	}
+	return &Parser{
+		lx:  lx,
+		tok: tk,
+		val: val,
+	}
 }
 
+// TODO we should set token value when meets the ErrEOZ
 func (p *Parser) eat() {
 	tok, val := p.lx.Get()
 	if p.lx.Err() != nil {
-		panic(p.lx.Err())
+		if p.lx.Err() != lexer.ErrEOZ {
+			panic(p.lx.Err())
+		}
 	}
 	p.tok = tok
 	p.val = val
@@ -45,20 +58,28 @@ func (p *Parser) match(tok token.Token) {
 	}
 }
 
-func (p *Parser) prefixTerm(n *Node) (ret ast.Ast) {
+func (p *Parser) prefixTerm(n *Node) ast.Ast {
 	switch p.tok {
 	case token.MUL:
 		p.eat()
 		factor := p.factor(nil)
 		tmpAst := ast.NewMulExpr(n.Ins, factor)
-		ret = p.prefixTerm(&Node{Ins: tmpAst})
+		pfxTermAst :=  p.prefixTerm(&Node{Ins: tmpAst})
+		if pfxTermAst != nil {
+			return pfxTermAst
+		}
+		return tmpAst
 	case token.DIV:
 		p.eat()
 		factor := p.factor(nil)
 		tmpAst := ast.NewDivExpr(n.Ins, factor)
-		ret = p.prefixTerm(&Node{Ins: tmpAst})
+		pfxTermAst :=  p.prefixTerm(&Node{Ins: tmpAst})
+		if pfxTermAst != nil {
+			return pfxTermAst
+		}
+		return tmpAst
 	}
-	return
+	return nil
 }
 
 func (p *Parser) factor(_ *Node) (ret ast.Ast) {
@@ -69,6 +90,7 @@ func (p *Parser) factor(_ *Node) (ret ast.Ast) {
 			panic(err)
 		}
 		ret = ast.NewIntExpr(val)
+		p.eat()
 	case token.LPAREN:
 		p.eat()
 		ret = p.expr()
@@ -85,12 +107,19 @@ func (p *Parser) prefixExpr(n *Node) ast.Ast {
 		p.eat()
 		term := p.term(nil)
 		tmpAst := ast.NewAddExpr(n.Ins, term)
-		return p.prefixExpr(&Node{Ins: tmpAst})
+		pfxExprAst := p.prefixExpr(&Node{Ins: tmpAst})
+		if pfxExprAst != nil {
+			return pfxExprAst
+		}
+		return tmpAst
 	case token.SUB:
 		p.eat()
 		term := p.term(nil)
 		tmpAst := ast.NewSubExpr(n.Ins, term)
-		return p.prefixExpr(&Node{Ins: tmpAst})
+		pfxExprAst := p.prefixExpr(&Node{Ins: tmpAst})
+		if pfxExprAst != nil {
+			return pfxExprAst
+		}
 	}
 	return nil
 }
@@ -98,16 +127,25 @@ func (p *Parser) prefixExpr(n *Node) ast.Ast {
 func (p *Parser) term(_ *Node) ast.Ast {
 	factor := p.factor(&Node{})
 	pfxTermNode := &Node{Ins: factor}
-	return p.prefixTerm(pfxTermNode)
+	pfxTermAst := p.prefixTerm(pfxTermNode)
+	if pfxTermAst != nil {
+		return pfxTermAst
+	}
+	return factor
 }
 
 func (p *Parser) expr() ast.Ast {
 	termNode, pfxExpNode := &Node{}, &Node{}
 	termAst := p.term(termNode)
 	pfxExpNode.Ins = termAst
-	return p.prefixExpr(pfxExpNode)
+	pfxExprAst := p.prefixExpr(pfxExpNode)
+	if pfxExprAst != nil {
+		return pfxExprAst
+	}
+	return termAst
 }
 
+// Next parse the ast from input tokens
 func (p *Parser) Next() ast.Ast {
-
+	return p.expr()
 }

@@ -7,6 +7,10 @@ func TestLexer_Get(t *testing.T) {
 	for {
 		tok, val := l.Get()
 		if l.err != nil {
+			if l.err != ErrEOZ {
+				t.Fail()
+				return
+			}
 			t.Log(l.err)
 			return
 		}
