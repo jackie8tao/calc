@@ -1,9 +1,5 @@
 package main
 
-import (
-	"calc/token"
-)
-
 // EOZ end of file
 const EOZ = rune(-1)
 
@@ -31,22 +27,27 @@ func NewLexer(src string) *Lexer {
 	}
 }
 
-func isEOF(c rune) bool {
-	return c == EOZ
+// check whether current char is EOZ.
+func (l *Lexer) isEOZ() bool {
+	return l.ch == EOZ
 }
 
-func isDigit(c rune) bool {
-	return '0' <= c && c <= '9'
+// check whether current char is digit.
+func (l *Lexer) isDigit() bool {
+	return '0' <= l.ch && l.ch <= '9'
 }
 
-func isWhitespace(c rune) bool {
-	return c == ' ' || c == '\t'
+// check whether current char is whitespace.
+func (l *Lexer) isWhitespace() bool {
+	return l.ch == ' ' || l.ch == '\t'
 }
 
+// save current char into buffer.
 func (l *Lexer) save() {
 	l.buf = append(l.buf, l.ch)
 }
 
+// eat current char and read next.
 func (l *Lexer) next() {
 	l.offset++
 	if l.offset >= len(l.src) {
@@ -56,11 +57,13 @@ func (l *Lexer) next() {
 	l.ch = l.src[l.offset]
 }
 
+// save current char and read next.
 func (l *Lexer) nextAndSave() {
 	l.save()
 	l.next()
 }
 
+// clear buffer.
 func (l *Lexer) reset() {
 	l.buf = make([]rune, 0)
 }
@@ -71,25 +74,25 @@ func (l *Lexer) Err() error {
 }
 
 // Get return next token from stream
-func (l *Lexer) Get() (tok token.Token, val string) {
+func (l *Lexer) Get() (tok Token, val string) {
 	l.reset()
 
 	for {
-		switch c := l.ch; {
-		case isEOF(c):
+		switch {
+		case l.isEOZ():
 			l.err = ErrEOZ
 			return
-		case isWhitespace(c):
+		case l.isWhitespace():
 			l.next()
-		case isDigit(c):
+		case l.isDigit():
 			l.nextAndSave()
-			for isDigit(l.ch) {
+			for l.isDigit() {
 				l.nextAndSave()
 			}
-			tok = token.INT
+			tok = TokInt
 			goto success
 		default:
-			tok = token.LookupOperator(c)
+			tok = lookupToken(l.ch)
 			l.nextAndSave()
 			goto success
 		}

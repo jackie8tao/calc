@@ -11,4 +11,7 @@ var (
 
 	// ErrEmpty empty stream
 	ErrEmpty = errors.New("empty stream")
+
+	// ErrUnexpectedToken unexpected token
+	ErrUnexpectedToken = errors.New("unexpected token")
 )
