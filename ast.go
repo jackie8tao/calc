@@ -31,8 +31,8 @@ func (t *IntAst) Op() Operator {
 /* ------------------------------------------------------ */
 // AddAst add expression
 type AddAst struct {
-	Left  int64
-	Right int64
+	Left  Ast
+	Right Ast
 }
 
 func (t *AddAst) Op() Operator {
@@ -42,8 +42,8 @@ func (t *AddAst) Op() Operator {
 /* ------------------------------------------------------ */
 // SubAst sub expression
 type SubAst struct {
-	Left  int64
-	Right int64
+	Left  Ast
+	Right Ast
 }
 
 func (t *SubAst) Op() Operator {
@@ -53,8 +53,8 @@ func (t *SubAst) Op() Operator {
 /* ------------------------------------------------------ */
 // MulAst multiple expression
 type MulAst struct {
-	Left  int64
-	Right int64
+	Left  Ast
+	Right Ast
 }
 
 func (t *MulAst) Op() Operator {
@@ -64,8 +64,8 @@ func (t *MulAst) Op() Operator {
 /* ------------------------------------------------------ */
 // DivAst divide expression
 type DivAst struct {
-	Left  int64
-	Right int64
+	Left  Ast
+	Right Ast
 }
 
 func (t *DivAst) Op() Operator {

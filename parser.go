@@ -1,18 +1,10 @@
 package main
 
 import (
-	"go/token"
 	"strconv"
-
-	"calc/ast"
 )
 
-// Node parsing tree node
-type Node struct {
-	Val ast.Ast
-	Ins ast.Ast
-}
-
+// Parser calculator parser.
 type Parser struct {
 	err error
 	lx  *Lexer
@@ -20,8 +12,8 @@ type Parser struct {
 	val string
 }
 
-// New create
-func New(src string) *Parser {
+// NewParser create parser.
+func NewParser(src string) *Parser {
 	lx := NewLexer(src)
 	tk, val := lx.Get()
 	if lx.Err() != nil {
@@ -34,113 +26,131 @@ func New(src string) *Parser {
 	}
 }
 
-// TODO we should set token value when meets the ErrEOZ
+// get next token
 func (p *Parser) eat() {
 	tok, val := p.lx.Get()
 	if p.lx.Err() != nil {
-		if p.lx.Err() != lexer.ErrEOZ {
+		if p.lx.Err() != ErrEOZ {
 			panic(p.lx.Err())
 		}
+		// when meets EOZ, we simply set tok and val zero.
+		p.tok = Token(0)
+		p.val = "$"
+		return
 	}
 	p.tok = tok
 	p.val = val
 }
 
-func (p *Parser) match(tok token.Token) {
+// get next token and check whether it is tok.
+func (p *Parser) match(tok Token) {
 	p.eat()
 	if p.tok != tok {
-		panic(errUnexpectedToken)
+		panic(ErrUnexpectedToken)
 	}
 }
 
-func (p *Parser) prefixTerm(n *Node) ast.Ast {
+// parse prefix-term
+func (p *Parser) prefixTerm(inh Ast) (ret Ast) {
+	var factor Ast
 	switch p.tok {
-	case token.MUL:
+	case TokMul:
 		p.eat()
-		factor := p.factor(nil)
-		tmpAst := ast.NewMulExpr(n.Ins, factor)
-		pfxTermAst := p.prefixTerm(&Node{Ins: tmpAst})
-		if pfxTermAst != nil {
-			return pfxTermAst
+		factor = p.factor()
+		ret = &MulAst{
+			Left:  inh,
+			Right: factor,
 		}
-		return tmpAst
-	case token.DIV:
+	case TokDiv:
 		p.eat()
-		factor := p.factor(nil)
-		tmpAst := ast.NewDivExpr(n.Ins, factor)
-		pfxTermAst := p.prefixTerm(&Node{Ins: tmpAst})
-		if pfxTermAst != nil {
-			return pfxTermAst
+		factor = p.factor()
+		ret = &DivAst{
+			Left:  inh,
+			Right: factor,
 		}
-		return tmpAst
+	default: // return nil
+		return
 	}
-	return nil
-}
 
-func (p *Parser) factor(_ *Node) (ret ast.Ast) {
-	switch p.tok {
-	case token.INT:
-		val, err := strconv.ParseInt(p.val, 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		ret = ast.NewIntExpr(val)
-		p.eat()
-	case token.LPAREN:
-		p.eat()
-		ret = p.expr()
-		p.match(token.RPAREN)
-	default:
-		panic(errUnexpectedToken)
+	pfx := p.prefixTerm(ret)
+	if pfx != nil {
+		ret = pfx
 	}
 	return
 }
 
-func (p *Parser) prefixExpr(n *Node) ast.Ast {
+// parse factor.
+func (p *Parser) factor() (ast Ast) {
 	switch p.tok {
-	case token.ADD:
-		p.eat()
-		term := p.term(nil)
-		tmpAst := ast.NewAddExpr(n.Ins, term)
-		pfxExprAst := p.prefixExpr(&Node{Ins: tmpAst})
-		if pfxExprAst != nil {
-			return pfxExprAst
+	case TokInt:
+		val, err := strconv.ParseInt(p.val, 10, 64)
+		if err != nil {
+			panic(err)
 		}
-		return tmpAst
-	case token.SUB:
+		ast = &IntAst{Num: val}
 		p.eat()
-		term := p.term(nil)
-		tmpAst := ast.NewSubExpr(n.Ins, term)
-		pfxExprAst := p.prefixExpr(&Node{Ins: tmpAst})
-		if pfxExprAst != nil {
-			return pfxExprAst
-		}
+	case TokLParen:
+		p.eat()
+		ast = p.expr()
+		p.match(TokRParen)
+	default:
+		panic(ErrUnexpectedToken)
 	}
-	return nil
+	return
 }
 
-func (p *Parser) term(_ *Node) ast.Ast {
-	factor := p.factor(&Node{})
-	pfxTermNode := &Node{Ins: factor}
-	pfxTermAst := p.prefixTerm(pfxTermNode)
-	if pfxTermAst != nil {
-		return pfxTermAst
+// parse term
+func (p *Parser) term() (ret Ast) {
+	factor := p.factor()
+	ret = p.prefixTerm(factor)
+	if ret != nil {
+		return
 	}
-	return factor
+	ret = factor
+	return
 }
 
-func (p *Parser) expr() ast.Ast {
-	termNode, pfxExpNode := &Node{}, &Node{}
-	termAst := p.term(termNode)
-	pfxExpNode.Ins = termAst
-	pfxExprAst := p.prefixExpr(pfxExpNode)
-	if pfxExprAst != nil {
-		return pfxExprAst
+// parse prefix-term
+func (p *Parser) prefixExpr(inh Ast) (ret Ast) {
+	var term Ast
+	switch p.tok {
+	case TokAdd:
+		p.eat()
+		term = p.term()
+		ret = &AddAst{
+			Left:  inh,
+			Right: term,
+		}
+	case TokSub:
+		p.eat()
+		term := p.term()
+		ret = &SubAst{
+			Left:  inh,
+			Right: term,
+		}
+	default:
+		return
 	}
-	return termAst
+
+	pfx := p.prefixExpr(ret)
+	if pfx != nil {
+		ret = pfx
+	}
+	return
+}
+
+// parse expresion
+func (p *Parser) expr() (ret Ast) {
+	term := p.term()
+	ret = p.prefixExpr(term)
+	if ret != nil {
+		return
+	}
+	ret = term
+	return
 }
 
 // Next parse the ast from input tokens
-func (p *Parser) Next() ast.Ast {
+func (p *Parser) Next() Ast {
 	return p.expr()
 }
