@@ -1,15 +1,13 @@
-package lexer
+package main
 
 import (
-	"errors"
-
 	"calc/token"
 )
 
-const EOF = rune(-1)
+// EOZ end of file
+const EOZ = rune(-1)
 
-var ErrEOZ = errors.New("end of stream")
-
+// Lexer parse token from input stream
 type Lexer struct {
 	err    error
 	ch     rune
@@ -18,18 +16,23 @@ type Lexer struct {
 	buf    []rune
 }
 
-func New(src string) *Lexer {
-	rsrc := []rune(src)
+// NewLexer create lexer upon source stream
+func NewLexer(src string) *Lexer {
+	val := []rune(src)
+	if len(val) <= 0 {
+		panic(ErrEmpty)
+	}
+
 	return &Lexer{
-		src:    rsrc,
+		ch:     val[0],
+		src:    val,
+		buf:    make([]rune, 0),
 		offset: 0,
-		ch:     rsrc[0],
-		buf:    []rune{},
 	}
 }
 
 func isEOF(c rune) bool {
-	return c == EOF
+	return c == EOZ
 }
 
 func isDigit(c rune) bool {
@@ -47,7 +50,7 @@ func (l *Lexer) save() {
 func (l *Lexer) next() {
 	l.offset++
 	if l.offset >= len(l.src) {
-		l.ch = EOF
+		l.ch = EOZ
 		return
 	}
 	l.ch = l.src[l.offset]
@@ -62,12 +65,15 @@ func (l *Lexer) reset() {
 	l.buf = make([]rune, 0)
 }
 
+// Err return lexer error
 func (l *Lexer) Err() error {
 	return l.err
 }
 
+// Get return next token from stream
 func (l *Lexer) Get() (tok token.Token, val string) {
 	l.reset()
+
 	for {
 		switch c := l.ch; {
 		case isEOF(c):
@@ -81,17 +87,14 @@ func (l *Lexer) Get() (tok token.Token, val string) {
 				l.nextAndSave()
 			}
 			tok = token.INT
-			val = string(l.buf)
-			return
+			goto success
 		default:
 			tok = token.LookupOperator(c)
-			if tok == token.ILLEGAL {
-				l.err = errors.New("illegal token")
-				return
-			}
 			l.nextAndSave()
-			val = string(l.buf)
-			return
+			goto success
 		}
 	}
+success:
+	val = string(l.buf)
+	return
 }

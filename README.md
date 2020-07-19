@@ -1,2 +1,2 @@
 # calc
-A simple calculator implemented in compiler theory.
+`calc` is a simple calculator implemented in compiler theory.
