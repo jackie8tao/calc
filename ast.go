@@ -6,7 +6,7 @@ const (
 	OpSub
 	OpMul
 	OpDiv
-	OpAssign
+	OpInt
 )
 
 // Op expression operator
@@ -25,7 +25,7 @@ type IntAst struct {
 }
 
 func (t *IntAst) Op() Operator {
-	return OpAssign
+	return OpInt
 }
 
 /* ------------------------------------------------------ */
